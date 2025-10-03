@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Teleprompter — Velocidade e Tamanho</title>
+  <style>
+    :root {
+      --bg: #0b0b0c;
+      --panel: #15161a;
+      --fg: #f5f7fa;
+      --muted: #a8b0bd;
+      --accent: #4fb3ff;
+      --accent-2: #7cff9c;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 12px;
+    }
+
+    header {
+      padding: 12px 16px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0));
+      border-bottom: 1px solid #1e2126;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    header h1 {
+      font-size: 16px;
+      margin: 0;
+      letter-spacing: .4px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+
+    .controls {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 8px;
+      width: 100%;
+    }
+
+    .group {
+      background: var(--panel);
+      border: 1px solid #1f232a;
+      border-radius: var(--radius);
+      padding: 10px;
+      display: grid;
+      gap: 6px;
+      align-items: center;
+    }
+    .group label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: nowrap;
+    }
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--accent);
+    }
+    input[type="number"] {
+      width: 100%;
+      background: #0f1115;
+      color: var(--fg);
+      border: 1px solid #2a2f38;
+      border-radius: 8px;
+      padding: 6px 8px;
+    }
+    button {
+      background: #1b87ef;
+      color: white;
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    button.secondary {
+      background: #2a2f38;
+    }
+    button:disabled {
+      opacity: .6;
+      cursor: not-allowed;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 12px;
+      padding: 0 16px 16px;
+      overflow: hidden;
+    }
+
+    .editor {
+      display: grid;
+      grid-template-rows: auto 1fr;
+      gap: 8px;
+      background: var(--panel);
+      border: 1px solid #1f232a;
+      border-radius: var(--radius);
+      overflow: hidden;
+      min-height: 300px;
+    }
+    .editor header {
+      border: 0;
+      background: #111318;
+      padding: 10px 12px;
+    }
+    .editor header h2 {
+      margin: 0;
+      font-size: 13px;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    textarea {
+      width: 100%;
+      height: 100%;
+      resize: none;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--fg);
+      padding: 12px;
+      line-height: 1.5;
+      font-size: 16px;
+    }
+
+    .stage {
+      position: relative;
+      background: #000;
+      border: 1px solid #1f232a;
+      border-radius: var(--radius);
+      overflow: hidden;
+      min-height: 300px;
+    }
+    .viewport {
+      position: absolute;
+      inset: 0;
+      overflow: hidden; /* evitamos a barra de rolagem do container */
+      padding: 24px clamp(24px, 4vw, 48px);
+    }
+    .content {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 0;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      line-height: 1.4;
+      filter: drop-shadow(0 1px 0 rgba(0,0,0,.3));
+      will-change: transform;
+    }
+
+    .statusbar {
+      position: absolute;
+      right: 12px;
+      bottom: 12px;
+      background: rgba(0,0,0,.55);
+      border: 1px solid rgba(255,255,255,.08);
+      color: #d5e9ff;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      pointer-events: none;
+    }
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      padding: 6px 2px 0;
+    }
+
+    @media (max-width: 980px) {
+      .layout { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Teleprompter, velocidade e tamanho da letra</h1>
+    <div class="controls">
+      <div class="group" style="grid-column: span 2;">
+        <label for="speedRange">Velocidade px/s</label>
+        <div class="row">
+          <input id="speedRange" type="range" min="0" max="300" step="1" value="60" />
+          <input id="speedNumber" type="number" min="0" max="300" step="1" value="60" />
+        </div>
+      </div>
+
+      <div class="group" style="grid-column: span 2;">
+        <label for="fontRange">Tamanho da fonte px</label>
+        <div class="row">
+          <input id="fontRange" type="range" min="16" max="96" step="1" value="44" />
+          <input id="fontNumber" type="number" min="16" max="96" step="1" value="44" />
+        </div>
+      </div>
+
+      <div class="group" style="grid-column: span 2; align-items: stretch;">
+        <label>Controles</label>
+        <div class="row">
+          <button id="startBtn">Iniciar</button>
+          <button id="pauseBtn" class="secondary" disabled>Pausar</button>
+          <button id="resetBtn" class="secondary">Reiniciar</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="layout">
+    <section class="editor" aria-label="Editor de texto">
+      <header><h2>Texto</h2></header>
+      <textarea id="inputText" placeholder="Cole ou digite o texto do teleprompter aqui..."></textarea>
+      <div class="hint">Dicas, espaço pausa, ↑/↓ velocidade, +/− tamanho da fonte.</div>
+    </section>
+
+    <section class="stage" aria-label="Área do teleprompter">
+      <div class="viewport" id="viewport">
+        <div class="content" id="content"></div>
+      </div>
+      <div class="statusbar" id="statusbar">
+        <span id="statSpeed">60 px/s</span>
+        <span>•</span>
+        <span id="statFont">44 px</span>
+        <span>•</span>
+        <span id="statState">Parado</span>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // Estado
+    const els = {
+      speedRange: document.getElementById('speedRange'),
+      speedNumber: document.getElementById('speedNumber'),
+      fontRange: document.getElementById('fontRange'),
+      fontNumber: document.getElementById('fontNumber'),
+      startBtn: document.getElementById('startBtn'),
+      pauseBtn: document.getElementById('pauseBtn'),
+      resetBtn: document.getElementById('resetBtn'),
+      inputText: document.getElementById('inputText'),
+      viewport: document.getElementById('viewport'),
+      content: document.getElementById('content'),
+      statSpeed: document.getElementById('statSpeed'),
+      statFont: document.getElementById('statFont'),
+      statState: document.getElementById('statState'),
+    };
+
+    let speed = Number(els.speedRange.value);     // px/s
+    let fontSize = Number(els.fontRange.value);   // px
+    let running = false;
+    let rafId = null;
+    let lastTs = 0;
+    let y = 0; // posição Y do conteúdo
+
+    // Sincronização de inputs pareados
+    function bindPair(rangeEl, numberEl, onChange) {
+      const sync = (src, dest) => {
+        dest.value = src.value;
+        onChange(Number(src.value));
+      };
+      rangeEl.addEventListener('input', () => sync(rangeEl, numberEl));
+      numberEl.addEventListener('input', () => sync(numberEl, rangeEl));
+      numberEl.addEventListener('change', () => {
+        // clamp manual nos number
+        const min = Number(numberEl.min), max = Number(numberEl.max);
+        if (numberEl.value === '') numberEl.value = rangeEl.value;
+        numberEl.value = String(Math.min(max, Math.max(min, Number(numberEl.value))));
+        sync(numberEl, rangeEl);
+      });
+    }
+
+    bindPair(els.speedRange, els.speedNumber, v => {
+      speed = v;
+      els.statSpeed.textContent = `${v} px/s`;
+    });
+    bindPair(els.fontRange, els.fontNumber, v => {
+      fontSize = v;
+      els.content.style.fontSize = v + 'px';
+      els.statFont.textContent = `${v} px`;
+    });
+
+    // Render inicial de conteúdo
+    function renderContent() {
+      const text = els.inputText.value.trim() || 'Digite seu texto no painel à esquerda e clique em Iniciar.';
+      els.content.textContent = text + '\n\n'; // espaço final
+      els.content.style.transform = `translateY(${y}px)`;
+    }
+
+    // Loop de animação
+    function tick(ts) {
+      if (!running) return;
+      if (!lastTs) lastTs = ts;
+      const dt = (ts - lastTs) / 1000; // segundos
+      lastTs = ts;
+
+      y -= speed * dt; // mover para cima
+      const contentRect = els.content.getBoundingClientRect();
+      const viewportRect = els.viewport.getBoundingClientRect();
+
+      // Se terminou de passar, para no final
+      if (contentRect.bottom + y < viewportRect.bottom - viewportRect.top) {
+        running = false;
+        window.cancelAnimationFrame(rafId);
+        els.statState.textContent = 'Fim';
+        els.pauseBtn.disabled = true;
+        els.startBtn.disabled = false;
+        return;
+      }
+
+      els.content.style.transform = `translateY(${y}px)`;
+      rafId = window.requestAnimationFrame(tick);
+    }
+
+    // Controles
+    els.startBtn.addEventListener('click', () => {
+      // Se for o primeiro start após editar texto, reidrogena
+      if (y === 0 || !running) {
+        renderContent();
+      }
+      running = true;
+      els.statState.textContent = 'Rodando';
+      els.startBtn.disabled = true;
+      els.pauseBtn.disabled = false;
+      lastTs = 0;
+      rafId = window.requestAnimationFrame(tick);
+    });
+
+    els.pauseBtn.addEventListener('click', () => {
+      running = false;
+      els.statState.textContent = 'Pausado';
+      els.startBtn.disabled = false;
+      els.pauseBtn.disabled = true;
+      if (rafId) window.cancelAnimationFrame(rafId);
+    });
+
+    els.resetBtn.addEventListener('click', () => {
+      running = false;
+      if (rafId) window.cancelAnimationFrame(rafId);
+      y = 0;
+      els.content.style.transform = `translateY(0px)`;
+      els.statState.textContent = 'Parado';
+      els.startBtn.disabled = false;
+      els.pauseBtn.disabled = true;
+      renderContent();
+    });
+
+    // Atualiza conteúdo ao digitar
+    let debounceTimer = null;
+    els.inputText.addEventListener('input', () => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => {
+        // preserva posição ao editar, mas se estiver parado, reseta
+        if (!running) {
+          y = 0;
+          renderContent();
+        } else {
+          renderContent();
+        }
+      }, 120);
+    });
+
+    // Ajuste responsivo inicial
+    window.addEventListener('resize', () => {
+      // mantém posição visual
+      els.content.style.transform = `translateY(${y}px)`;
+    });
+
+    // Teclado
+    window.addEventListener('keydown', e => {
+      if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (running) {
+          els.pauseBtn.click();
+        } else {
+          els.startBtn.click();
+        }
+      } else if (e.key === '+' || e.key === '=') {
+        els.fontNumber.value = Math.min(96, Number(els.fontNumber.value) + 2);
+        els.fontNumber.dispatchEvent(new Event('input'));
+      } else if (e.key === '-' || e.key === '_') {
+        els.fontNumber.value = Math.max(16, Number(els.fontNumber.value) - 2);
+        els.fontNumber.dispatchEvent(new Event('input'));
+      } else if (e.key === 'ArrowUp') {
+        els.speedNumber.value = Math.min(300, Number(els.speedNumber.value) + 5);
+        els.speedNumber.dispatchEvent(new Event('input'));
+      } else if (e.key === 'ArrowDown') {
+        els.speedNumber.value = Math.max(0, Number(els.speedNumber.value) - 5);
+        els.speedNumber.dispatchEvent(new Event('input'));
+      }
+    });
+
+    // Inicialização
+    renderContent();
+    els.content.style.fontSize = fontSize + 'px';
+  </script>
+</body>
+</html>
